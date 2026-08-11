@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Container Stack Shuffle</title>
+  <style>
+    :root{
+      --bg:#05080d;--panel:#0b1119;--panel2:#0e1620;--text:#f7fafc;--muted:#8090a2;
+      --border:#26313e;--cyan:#22d3ee;--green:#34d399;--amber:#fbbf24;--violet:#8b5cf6;
+      --red:#ef4444;--blue:#3498db;--yellow:#facc15;--purple:#a855f7;--container-green:#22c55e;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button{font:inherit}
+    button:focus-visible{outline:2px solid #a5f3fc;outline-offset:2px}
+    .page{min-height:100vh;padding:18px 16px 28px}
+    .wrap{max-width:1240px;margin:0 auto}
+    .hero{text-align:center;padding:2px 0 14px}
+    .hero h1{margin:0;font-size:30px;line-height:1.1;font-weight:950;letter-spacing:-.035em}
+    .hero p{margin:8px auto 0;max-width:850px;font-size:13px;line-height:1.55;color:rgba(255,255,255,.58);font-weight:650}
+    .quantum-pill{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:7px 12px;border-radius:999px;background:rgba(139,92,246,.07);box-shadow:inset 0 0 0 1px rgba(167,139,250,.12);color:rgba(237,233,254,.72);font-size:10px;font-weight:800}
+
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 auto 20px;max-width:1240px}
+    .stats{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+    .stat{min-height:44px;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:13px;background:rgba(255,255,255,.026);box-shadow:inset 0 0 0 1px rgba(255,255,255,.075)}
+    .stat .label{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.36);font-weight:900;white-space:nowrap}
+    .stat strong{font-size:18px;font-weight:950;font-variant-numeric:tabular-nums}
+    .stat.time strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
+    .stat.matched strong{color:var(--green)}
+    .stat.hints{background:rgba(251,191,36,.06);color:#fef3c7;box-shadow:inset 0 0 0 1px rgba(251,191,36,.12)}
+    .difficulty{display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+    .difficulty button{min-width:98px;min-height:42px;border:0;border-radius:13px;padding:0 15px;background:rgba(255,255,255,.03);color:rgba(255,255,255,.64);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font-size:12px;font-weight:900;cursor:pointer;transition:.18s ease}
+    .difficulty button:hover{background:rgba(255,255,255,.065);color:#fff}
+    .difficulty button.active.easy{background:rgba(52,211,153,.12);box-shadow:inset 0 0 0 1px rgba(52,211,153,.42);color:#ecfdf5}
+    .difficulty button.active.medium{background:rgba(251,191,36,.15);box-shadow:inset 0 0 0 1px rgba(251,191,36,.48);color:#fffbeb}
+    .difficulty button.active.hard{background:rgba(251,113,133,.13);box-shadow:inset 0 0 0 1px rgba(251,113,133,.42);color:#fff1f2}
+
+    .board{display:grid;grid-template-columns:repeat(var(--stack-count),minmax(0,1fr));gap:10px;align-items:start}
+    .stack-col{min-width:0}
+    .stack-head{min-height:66px;padding:0 3px 8px}
+    .stack-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .stack-title{margin:0;font-size:13px;font-weight:950;color:#eafcff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .stack-col.buffer .stack-title{color:#fff8e7}
+    .stack-subtitle{margin-top:3px;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.34)}
+    .count{flex-shrink:0;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.05);font:700 10px ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(255,255,255,.52)}
+    .target-inline{display:flex;align-items:center;gap:6px;margin-top:9px;min-width:0}
+    .target-label{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3)}
+    .target-chips{display:flex;gap:4px;min-width:0}
+    .chip{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:8px;font-weight:950;position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),0 2px 5px rgba(0,0,0,.16)}
+    .chip.matched{outline:2px solid rgba(167,243,208,.82)}
+    .chip .check{position:absolute;right:-4px;top:-4px;width:10px;height:10px;border-radius:999px;background:#a7f3d0;color:#064e3b;display:grid;place-items:center;font-size:6px;font-weight:950}
+
+    .well{height:340px;position:relative;display:flex;flex-direction:column-reverse;align-items:center;justify-content:flex-start;gap:7px;padding:12px 11px 17px;border-radius:25px;background:rgba(34,211,238,.035);transition:.18s ease;box-shadow:inset 0 0 0 1px rgba(34,211,238,.02)}
+    .buffer .well{background:rgba(251,191,36,.03);box-shadow:inset 0 0 0 1px rgba(251,191,36,.025)}
+    .well.selected{background:rgba(251,191,36,.065);box-shadow:inset 0 0 0 2px rgba(253,230,138,.48)}
+    .well.valid{background:rgba(34,211,238,.10);box-shadow:inset 0 0 0 2px rgba(34,211,238,.6),0 0 26px rgba(34,211,238,.08);cursor:pointer}
+    .well.dim{opacity:.52}
+    .capacity{position:absolute;top:10px;right:10px;display:flex;gap:2px;z-index:2}
+    .capacity span{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.10)}
+    .capacity span.fill{background:rgba(255,255,255,.58)}
+    .piece{width:94%;height:42px;border:0;border-radius:8px;display:grid;place-items:center;position:relative;color:#fff;font-size:12px;font-weight:950;box-shadow:0 5px 12px rgba(0,0,0,.22),inset 0 0 0 1px rgba(255,255,255,.10);transition:transform .16s ease,filter .16s ease,outline .16s ease;z-index:4}
+    .piece.top{cursor:pointer}
+    .piece.top:hover{filter:brightness(1.07)}
+    .piece.selected-piece{transform:translateY(-4px);outline:2px solid rgba(165,243,252,.85)}
+    .piece.hint{outline:2px solid rgba(253,230,138,.9)}
+    .top-arrow{position:absolute;left:50%;top:-13px;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,.92);text-shadow:0 1px 3px #000}
+    .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;color:rgba(207,250,254,.26);font-size:12px;font-weight:750;pointer-events:none}
+    .buffer .empty{color:rgba(254,243,199,.3)}
+    .place-label{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:7;padding:6px 10px;border-radius:999px;background:rgba(6,21,26,.96);box-shadow:inset 0 0 0 1px rgba(165,243,252,.34);font-size:9px;font-weight:950;color:#cffafe;white-space:nowrap;pointer-events:none}
+    .full-label{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:7;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.82);font-size:9px;font-weight:950;color:#fecaca;white-space:nowrap;pointer-events:none}
+
+    .statusline{min-height:24px;margin:12px auto 0;max-width:900px;text-align:center;color:rgba(255,255,255,.46);font-size:11px;font-weight:700}
+    .hintline{margin:8px auto 0;max-width:900px;padding:10px 14px;border-radius:14px;background:rgba(251,191,36,.08);box-shadow:inset 0 0 0 1px rgba(251,191,36,.14);text-align:center;color:#fef3c7;font-size:11px;font-weight:850}
+    .controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;margin:15px auto 0;max-width:950px}
+    .control{min-height:44px;border:0;border-radius:999px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.075);color:rgba(255,255,255,.82);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);font-size:12px;font-weight:900;cursor:pointer;transition:.16s ease}
+    .control:hover{filter:brightness(1.12)}
+    .control:disabled{opacity:.28;cursor:not-allowed;filter:none}
+    .control.hint{background:var(--amber);color:#312300;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+    .control.optimal{background:linear-gradient(90deg,#7c3aed,#2563eb,#06b6d4);color:#fff;box-shadow:inset 0 0 0 1px rgba(221,214,254,.25),0 7px 20px rgba(76,29,149,.20)}
+
+    .solution{display:none;margin:14px auto 0;max-width:1240px;padding:16px;border-radius:22px;background:linear-gradient(145deg,rgba(139,92,246,.075),rgba(8,13,21,.985) 35%);box-shadow:inset 0 0 0 1px rgba(196,181,253,.18)}
+    .solution.show{display:block}
+    .solution-top{display:flex;gap:16px;align-items:center;justify-content:space-between}
+    .solution h3{margin:0;font-size:16px}
+    .solution p{margin:5px 0 0;font-size:11px;color:rgba(255,255,255,.52);font-weight:700}
+    .solution-actions{display:flex;flex-wrap:wrap;gap:7px}
+    .solution-actions button{min-height:38px;border:0;border-radius:11px;padding:0 12px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);font-size:10px;font-weight:900;cursor:pointer}
+    .progress{margin-top:12px;height:6px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
+    .progress>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#8b5cf6,#22d3ee,#34d399);transition:width .25s ease}
+
+    .lesson{margin:18px auto 0;max-width:1240px;border-radius:16px;background:rgba(139,92,246,.025);box-shadow:inset 0 0 0 1px rgba(139,92,246,.10);overflow:hidden}
+    .lesson summary{cursor:pointer;list-style:none;padding:13px 15px;font-size:11px;font-weight:900;color:rgba(237,233,254,.76);display:flex;align-items:center;justify-content:space-between}
+    .lesson summary::-webkit-details-marker{display:none}
+    .lesson-body{padding:0 15px 15px;border-top:1px solid rgba(139,92,246,.09)}
+    .lesson-body p{font-size:11px;line-height:1.6;color:rgba(255,255,255,.48);font-weight:650}
+    .lesson-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
+    .lesson-card{padding:12px;border-radius:14px;background:rgba(255,255,255,.027);box-shadow:inset 0 0 0 1px rgba(255,255,255,.055)}
+    .lesson-card strong{display:block;font-size:10px;color:#fff}
+    .lesson-card span{display:block;margin-top:5px;font-size:10px;line-height:1.5;color:rgba(255,255,255,.44)}
+
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;place-items:center;padding:16px;z-index:100;backdrop-filter:blur(6px)}
+    .modal-backdrop.show{display:grid}
+    .modal{width:min(560px,100%);border-radius:24px;background:#0b1119;box-shadow:inset 0 0 0 1px rgba(255,255,255,.13),0 24px 80px rgba(0,0,0,.55);overflow:hidden}
+    .modal-head{padding:18px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+    .modal-head h2{margin:3px 0 0;font-size:20px}.modal-head p{margin:4px 0 0;font-size:11px;color:rgba(255,255,255,.45);font-weight:700}
+    .close{width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.06);color:rgba(255,255,255,.65);cursor:pointer}
+    .modal-body{padding:18px}
+    .steps{display:grid;gap:9px}
+    .step{padding:12px;border-radius:14px;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+    .step strong{font-size:12px}.step p{margin:4px 0 0;font-size:11px;line-height:1.55;color:rgba(255,255,255,.52);font-weight:650}
+
+    .toast{position:fixed;right:18px;bottom:18px;z-index:120;transform:translateY(20px);opacity:0;pointer-events:none;transition:.22s ease;padding:10px 13px;border-radius:12px;background:#0d1720;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 12px 35px rgba(0,0,0,.35);font-size:11px;font-weight:800}.toast.show{opacity:1;transform:none}
+
+    @media(max-width:900px){
+      .toolbar{flex-direction:column;align-items:stretch;gap:10px}.stats{justify-content:center}.difficulty{justify-content:center}.board{gap:7px}.well{height:290px}.piece{height:38px}
+    }
+    @media(max-width:720px){
+      .page{padding:10px 6px 22px}.hero h1{font-size:21px}.hero p{font-size:11px}.quantum-pill{display:none}
+      .toolbar{margin-bottom:12px}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.stat{min-width:0;padding:7px 5px;justify-content:center;flex-direction:column;gap:2px}.stat .label{font-size:7px}.stat strong{font-size:14px}.stat.time strong{font-size:12px}.difficulty{gap:6px}.difficulty button{flex:1;min-width:0;min-height:39px;padding:0 8px;font-size:10px}
+      .board{gap:4px}.stack-head{min-height:74px;padding:0 1px 5px}.stack-title{display:none}.stack-subtitle{display:none}.count{display:none}.stack-title-row::before{content:attr(data-short);display:inline-flex;min-height:22px;align-items:center;justify-content:center;border-radius:999px;padding:0 6px;background:rgba(255,255,255,.045);font-size:9px;font-weight:950;color:rgba(255,255,255,.76)}
+      .target-inline{flex-direction:column;align-items:center;gap:3px;margin-top:5px}.target-label{font-size:7px}.target-chips{flex-direction:column-reverse;gap:2px;width:100%;align-items:center}.chip{width:min(100%,38px);height:10px;border-radius:3px;font-size:7px}.chip .check{display:none}
+      .well{height:232px;border-radius:13px;padding:5px 2px 8px;gap:3px}.capacity{display:none}.piece{width:96%;height:41px;border-radius:6px;font-size:9px}.top-arrow{top:-11px;font-size:8px}.place-label,.full-label{font-size:7px;padding:4px 5px;max-width:calc(100% - 4px);overflow:hidden;text-overflow:ellipsis}
+      .controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.control{width:100%;padding:0 8px;font-size:10px}.control.optimal{grid-column:span 2}
+      .lesson-grid{grid-template-columns:1fr}.solution-top{align-items:flex-start;flex-direction:column}.solution-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.solution-actions button{width:100%}
+    }
+    @media(max-width:390px){.board{gap:3px}.well{height:228px}.piece{height:40px}.chip{width:min(100%,34px)}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="wrap">
+    <header class="hero">
+      <h1>🏗️ Container Stack Shuffle</h1>
+      <p>Match each Dispatch target using the fewest moves. Fewer moves = a lower-cost solution.</p>
+      <div class="quantum-pill"><span>⚛️</span><span>Quantum connection: reach the same goal with fewer operations.</span></div>
+    </header>
+
+    <section class="toolbar">
+      <div class="stats" aria-label="Game status">
+        <div class="stat"><span class="label">Moves / Cost</span><strong id="movesValue">0</strong></div>
+        <div class="stat time"><span>⏱</span><span class="label">Time</span><strong id="timeValue">00:00</strong></div>
+        <div class="stat matched"><span class="label">Matched</span><strong id="matchedValue">0/15</strong></div>
+        <div class="stat hints"><span>💡</span><strong id="hintsValue">3 hints</strong></div>
+      </div>
+      <div class="difficulty" aria-label="Choose difficulty">
+        <button data-difficulty="easy" class="easy">🟢 Easy</button>
+        <button data-difficulty="medium" class="medium active">🟡 Medium</button>
+        <button data-difficulty="hard" class="hard">🔴 Hard</button>
+      </div>
+    </section>
+
+    <main>
+      <div id="board" class="board" style="--stack-count:5"></div>
+      <div id="hintLine" class="hintline" hidden></div>
+      <div id="statusLine" class="statusline">Tap an exposed top container to begin.</div>
+
+      <div class="controls">
+        <button id="undoBtn" class="control" disabled>↶ Undo</button>
+        <button id="hintBtn" class="control hint">💡 Hint <span id="hintButtonCount">3</span></button>
+        <button id="resetBtn" class="control">🔄 Reset</button>
+        <button id="newBtn" class="control">🎲 New puzzle</button>
+        <button id="howBtn" class="control">❓ How to play</button>
+        <button id="solutionBtn" class="control optimal">🤖 Show solution route</button>
+      </div>
+
+      <section id="solutionPanel" class="solution" aria-live="polite">
+        <div class="solution-top">
+          <div>
+            <h3>🤖 Smart Crane route</h3>
+            <p id="solutionText">A route is ready.</p>
+          </div>
+          <div class="solution-actions">
+            <button id="prevSolution">← Previous</button>
+            <button id="playSolution">▶ Play</button>
+            <button id="nextSolution">Next →</button>
+            <button id="closeSolution">Close</button>
+          </div>
+        </div>
+        <div class="progress"><span id="solutionProgress"></span></div>
+      </section>
+
+      <details class="lesson">
+        <summary><span>⚛️ How this connects to quantum optimization</span><span>▼</span></summary>
+        <div class="lesson-body">
+          <p>This puzzle is an optimization analogy: many legal move sequences can reach the same final arrangement, but some use fewer operations. That is the idea to notice before moving into more formal quantum optimization methods.</p>
+          <div class="lesson-grid">
+            <div class="lesson-card"><strong>1 · Same goal</strong><span>Different valid sequences can produce the same final result.</span></div>
+            <div class="lesson-card"><strong>2 · Different cost</strong><span>Some routes use more moves, so the student can compare solution quality.</span></div>
+            <div class="lesson-card"><strong>3 · Optimization mindset</strong><span>Search for a lower-cost sequence instead of stopping at the first valid solution.</span></div>
+          </div>
+          <p><strong style="color:#ddd6fe">Note:</strong> This container game is a teaching analogy, not a simulation of superposition or entanglement.</p>
+        </div>
+      </details>
+    </main>
+  </div>
+</div>
+
+<div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="howTitle">
+  <section class="modal">
+    <div class="modal-head">
+      <div><div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.14em;color:#67e8f9">How to play</div><h2 id="howTitle">Container Stack Shuffle</h2><p>Pick the top box, move it, and match each Dispatch target.</p></div>
+      <button id="closeModal" class="close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="steps">
+        <div class="step"><strong>🎯 1. Read the Target</strong><p>Each Dispatch heading shows a compact Target sequence. Read it from left to right as bottom → top.</p></div>
+        <div class="step"><strong>👆 2. Pick only the top container</strong><p>The small ▲ marks the exposed container you are allowed to move.</p></div>
+        <div class="step"><strong>✨ 3. Choose a glowing destination</strong><p>After selecting a container, available stacks glow. Click one of them to place the container.</p></div>
+        <div class="step"><strong>🧩 4. Use Buffer A/B temporarily</strong><p>Buffers are workspace only. To finish, every Dispatch must match its Target and both buffers must be empty.</p></div>
+      </div>
+      <button id="startBtn" class="control" style="width:100%;margin-top:14px;background:#67e8f9;color:#083344">Start playing</button>
+    </div>
+  </section>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+(() => {
+  const CAP = 5;
+  const HINT_LIMIT = 3;
+  const DISPATCH = ['dispatch1','dispatch2','dispatch3','dispatch4'];
+  const BUFFERS = ['buffer1','buffer2'];
+  const ALL = [...DISPATCH,...BUFFERS];
+  const COLORS = {Red:'#ef4444',Blue:'#3498db',Green:'#22c55e',Yellow:'#facc15',Purple:'#a855f7'};
+  const LETTERS = {Red:'R',Blue:'B',Green:'G',Yellow:'Y',Purple:'P'};
+  const DIFFICULTY = {
+    easy:{containers:10,dispatch:2,scramble:9,label:'Easy'},
+    medium:{containers:15,dispatch:3,scramble:13,label:'Medium'},
+    hard:{containers:20,dispatch:4,scramble:16,label:'Hard'}
+  };
+  const PATTERN=['Red','Blue','Green','Yellow','Purple'];
+
+  const PRESETS = {
+    easy:{
+      targetOrder:['Green','Blue','Green','Red','Purple','Purple','Red','Yellow','Blue','Yellow'],
+      state:{dispatch1:['Green'],dispatch2:['Purple','Red','Yellow','Yellow','Blue'],dispatch3:[],dispatch4:[],buffer1:['Blue','Red','Green'],buffer2:['Purple']},
+      solution:[{from:'dispatch2',to:'dispatch1'},{from:'buffer1',to:'dispatch1'},{from:'buffer1',to:'dispatch1'},{from:'buffer2',to:'dispatch1'},{from:'dispatch2',to:'buffer2'},{from:'buffer1',to:'dispatch2'},{from:'buffer2',to:'dispatch2'}]
+    },
+    medium:{
+      targetOrder:['Red','Yellow','Purple','Green','Blue','Green','Red','Yellow','Blue','Yellow','Red','Blue','Purple','Purple','Green'],
+      state:{dispatch1:['Red','Yellow'],dispatch2:[],dispatch3:['Red','Blue','Purple','Blue','Green'],dispatch4:[],buffer1:['Green','Red','Purple','Purple'],buffer2:['Yellow','Blue','Yellow','Green']},
+      solution:[{from:'buffer1',to:'dispatch1'},{from:'dispatch3',to:'dispatch1'},{from:'dispatch3',to:'dispatch1'},{from:'buffer2',to:'dispatch2'},{from:'buffer1',to:'dispatch3'},{from:'buffer1',to:'dispatch2'},{from:'buffer1',to:'dispatch3'},{from:'buffer2',to:'dispatch2'},{from:'buffer2',to:'dispatch2'},{from:'buffer2',to:'dispatch2'}]
+    },
+    hard:{
+      targetOrder:['Green','Purple','Blue','Yellow','Purple','Yellow','Red','Green','Red','Green','Red','Blue','Yellow','Blue','Green','Yellow','Purple','Red','Purple','Blue'],
+      state:{dispatch1:['Green','Purple','Red'],dispatch2:['Yellow','Red','Green','Blue'],dispatch3:['Red','Blue','Yellow','Blue','Blue'],dispatch4:['Yellow','Purple'],buffer1:['Yellow'],buffer2:['Purple','Red','Green','Green','Purple']},
+      solution:[{from:'dispatch1',to:'dispatch4'},{from:'dispatch2',to:'dispatch1'},{from:'buffer1',to:'dispatch1'},{from:'buffer2',to:'dispatch4'},{from:'dispatch3',to:'dispatch4'},{from:'buffer2',to:'dispatch3'},{from:'buffer2',to:'buffer1'},{from:'buffer2',to:'dispatch2'},{from:'buffer1',to:'dispatch2'},{from:'buffer2',to:'dispatch1'}]
+    }
+  };
+
+  const $ = s => document.querySelector(s);
+  const board = $('#board');
+  const movesValue = $('#movesValue'), timeValue = $('#timeValue'), matchedValue = $('#matchedValue'), hintsValue = $('#hintsValue');
+  const hintButtonCount = $('#hintButtonCount'), statusLine = $('#statusLine'), hintLine = $('#hintLine');
+  const undoBtn = $('#undoBtn'), hintBtn = $('#hintBtn'), resetBtn = $('#resetBtn'), newBtn = $('#newBtn'), solutionBtn = $('#solutionBtn');
+  const solutionPanel = $('#solutionPanel'), solutionText = $('#solutionText'), solutionProgress = $('#solutionProgress');
+
+  let difficulty='medium', puzzle=clonePuzzle(PRESETS.medium), state=cloneState(PRESETS.medium.state), selected=null, moves=0, history=[], hintsUsed=0;
+  let startedAt=null, timerId=null, solutionBase=null, solutionSteps=[], solutionIndex=0, solutionTimer=null, inSolution=false;
+
+  function cloneState(s){return Object.fromEntries(ALL.map(id=>[id,[...(s[id]||[])]]));}
+  function clonePuzzle(p){return {targetOrder:[...p.targetOrder],state:cloneState(p.state),solution:p.solution.map(x=>({...x}))};}
+  function dispatchCount(target){return Math.ceil(target.length/CAP)}
+  function activeIds(){return [...DISPATCH.slice(0,dispatchCount(puzzle.targetOrder)),...BUFFERS]}
+  function isDispatch(id){return id.startsWith('dispatch')}
+  function stackName(id){return id==='dispatch1'?'Dispatch A':id==='dispatch2'?'Dispatch B':id==='dispatch3'?'Dispatch C':id==='dispatch4'?'Dispatch D':id==='buffer1'?'Buffer A':'Buffer B'}
+  function shortName(id){return id==='dispatch1'?'D-A':id==='dispatch2'?'D-B':id==='dispatch3'?'D-C':id==='dispatch4'?'D-D':id==='buffer1'?'B-A':'B-B'}
+  function targetFor(id){if(!isDispatch(id))return[];const i=DISPATCH.indexOf(id);return puzzle.targetOrder.slice(i*CAP,(i+1)*CAP)}
+  function securedFor(id,s=state){const t=targetFor(id);let n=0;while(n<t.length&&s[id][n]===t[n])n++;return n}
+  function securedCount(s=state){return DISPATCH.slice(0,dispatchCount(puzzle.targetOrder)).reduce((a,id)=>a+securedFor(id,s),0)}
+  function legalDestinations(from,s=state){return activeIds().filter(id=>id!==from&&s[id].length<CAP)}
+  function applyMove(s,m){const n=cloneState(s);const c=n[m.from].pop();if(c)n[m.to].push(c);return n}
+  function applyMoves(base,steps,count){let s=cloneState(base);for(let i=0;i<Math.min(count,steps.length);i++)s=applyMove(s,steps[i]);return s}
+  function isGoal(s=state){return BUFFERS.every(id=>s[id].length===0)&&DISPATCH.slice(0,dispatchCount(puzzle.targetOrder)).every(id=>{const t=targetFor(id);return s[id].length===t.length&&s[id].every((c,i)=>c===t[i])})}
+  function moveDescription(m,s=state){const src=s[m.from];const c=src[src.length-1];return c?`Move ${c} (${LETTERS[c]}) from ${stackName(m.from)} to ${stackName(m.to)}.`:`Move the top container from ${stackName(m.from)} to ${stackName(m.to)}.`}
+  function pad(n){return String(n).padStart(2,'0')}
+  function updateTimer(){if(startedAt==null)return;const sec=Math.floor((Date.now()-startedAt)/1000);timeValue.textContent=`${pad(Math.floor(sec/60))}:${pad(sec%60)}`}
+  function startTimer(){if(startedAt!=null)return;startedAt=Date.now();timerId=setInterval(updateTimer,1000)}
+  function stopTimer(){if(timerId){clearInterval(timerId);timerId=null}updateTimer()}
+  function resetTimer(){stopTimer();startedAt=null;timeValue.textContent='00:00'}
+  function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
+
+  function render(){
+    const display=inSolution&&solutionBase?applyMoves(solutionBase,solutionSteps,solutionIndex):state;
+    const ids=activeIds();
+    board.style.setProperty('--stack-count',ids.length);
+    board.innerHTML='';
+    const valid=selected&&!inSolution?new Set(legalDestinations(selected)):new Set();
+
+    ids.forEach(id=>{
+      const col=document.createElement('section');col.className='stack-col'+(isDispatch(id)?'':' buffer');
+      const topIndex=display[id].length-1, secured=isDispatch(id)?securedFor(id,display):0;
+      const head=document.createElement('div');head.className='stack-head';
+      const row=document.createElement('div');row.className='stack-title-row';row.setAttribute('data-short',shortName(id));
+      row.innerHTML=`<div><p class="stack-title">${stackName(id)}</p><div class="stack-subtitle">${isDispatch(id)?'current stack':'temporary workspace'}</div></div><span class="count">${display[id].length}/${CAP}</span>`;
+      head.appendChild(row);
+      if(isDispatch(id)){
+        const t=targetFor(id);const inline=document.createElement('div');inline.className='target-inline';
+        const chips=t.map((c,i)=>`<span class="chip ${i<secured?'matched':''}" style="background:${COLORS[c]};color:${c==='Yellow'?'#111827':'#fff'}">${LETTERS[c]}${i<secured?'<span class="check">✓</span>':''}</span>`).join('');
+        inline.innerHTML=`<span class="target-label">Target</span><span class="target-chips">${chips}</span>`;head.appendChild(inline);
+      }
+      col.appendChild(head);
+
+      const well=document.createElement('div');well.className='well';well.dataset.id=id;
+      if(!inSolution&&selected===id)well.classList.add('selected');
+      if(!inSolution&&selected&&selected!==id){if(valid.has(id))well.classList.add('valid');else well.classList.add('dim')}
+      const cap=document.createElement('div');cap.className='capacity';cap.innerHTML=Array.from({length:CAP},(_,i)=>`<span class="${i<display[id].length?'fill':''}"></span>`).join('');well.appendChild(cap);
+
+      display[id].forEach((c,i)=>{
+        const b=document.createElement('button');b.className='piece'+(i===topIndex?' top':'')+(!inSolution&&selected===id&&i===topIndex?' selected-piece':'');b.style.background=COLORS[c];b.style.color=c==='Yellow'?'#111827':'#fff';b.textContent=LETTERS[c];
+        if(i===topIndex){const a=document.createElement('span');a.className='top-arrow';a.textContent='▲';b.appendChild(a)}
+        b.disabled=inSolution||i!==topIndex;
+        b.addEventListener('click',()=>selectContainer(id,i));well.appendChild(b);
+      });
+      if(display[id].length===0){const e=document.createElement('div');e.className='empty';e.textContent=valid.has(id)?'Place container here':isDispatch(id)?'Empty dispatch stack':'Empty buffer';well.appendChild(e)}
+      if(!inSolution&&selected&&selected!==id){
+        if(valid.has(id)){const label=document.createElement('span');label.className='place-label';label.textContent='↓ Place here';well.appendChild(label);well.addEventListener('click',()=>moveContainer(id))}
+        else if(display[id].length>=CAP){const label=document.createElement('span');label.className='full-label';label.textContent='Stack full';well.appendChild(label)}
+      }
+      col.appendChild(well);board.appendChild(col);
+    });
+
+    movesValue.textContent=moves;
+    const matched=securedCount(display);matchedValue.textContent=`${matched}/${puzzle.targetOrder.length}`;
+    const remain=Math.max(0,HINT_LIMIT-hintsUsed);hintsValue.textContent=`${remain} hint${remain===1?'':'s'}`;hintButtonCount.textContent=remain;
+    undoBtn.disabled=history.length===0||inSolution;hintBtn.disabled=remain<=0||inSolution;
+    solutionBtn.disabled=inSolution;
+    document.querySelectorAll('[data-difficulty]').forEach(b=>b.classList.toggle('active',b.dataset.difficulty===difficulty));
+
+    if(inSolution){
+      solutionPanel.classList.add('show');
+      const total=solutionSteps.length;const safe=Math.min(solutionIndex,total);solutionProgress.style.width=(total?Math.round(safe/total*100):0)+'%';
+      if(safe>=total)solutionText.textContent=`Route complete in ${total} move${total===1?'':'s'}.`;
+      else {const before=applyMoves(solutionBase,solutionSteps,safe);solutionText.textContent=`Step ${safe+1} of ${total}: ${moveDescription(solutionSteps[safe],before)}`}
+    }else solutionPanel.classList.remove('show');
+  }
+
+  function selectContainer(id,index){
+    if(inSolution)return;const stack=state[id],top=stack.length-1;if(index!==top||top<0)return;
+    if(selected===id){selected=null;statusLine.textContent='Selection cleared. Choose another top container.';render();return}
+    if(selected)return;
+    selected=id;const c=stack[top];statusLine.textContent=`${c} selected from ${stackName(id)}. Tap a glowing destination.`;hintLine.hidden=true;render();
+  }
+  function moveContainer(to){
+    if(!selected||!legalDestinations(selected).includes(to)||inSolution)return;
+    const from=selected,c=state[from][state[from].length-1];startTimer();history.push({state:cloneState(state),moves});state=applyMove(state,{from,to});moves++;selected=null;hintLine.hidden=true;
+    if(isGoal()){stopTimer();statusLine.textContent=`Completed in ${moves} move${moves===1?'':'s'}!`;toast('🎉 Puzzle complete!')}
+    else statusLine.textContent=`${c} moved to ${stackName(to)}. Choose the next top container.`;render();
+  }
+  function undo(){if(!history.length||inSolution)return;const p=history.pop();state=cloneState(p.state);moves=p.moves;selected=null;hintLine.hidden=true;statusLine.textContent='Last move undone.';render()}
+  function resetAttempt(){state=cloneState(puzzle.state);moves=0;history=[];selected=null;hintsUsed=0;hintLine.hidden=true;closeSolution();resetTimer();statusLine.textContent='Puzzle reset. Tap an exposed top container.';render()}
+
+  function goalState(target){const s={dispatch1:[],dispatch2:[],dispatch3:[],dispatch4:[],buffer1:[],buffer2:[]};DISPATCH.slice(0,Math.ceil(target.length/CAP)).forEach((id,i)=>s[id]=target.slice(i*CAP,(i+1)*CAP));return s}
+  function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+  function generatePuzzle(level){
+    const cfg=DIFFICULTY[level],target=shuffle(Array.from({length:cfg.containers},(_,i)=>PATTERN[i%PATTERN.length]));let s=goalState(target),path=[],prev=null;
+    for(let i=0;i<cfg.scramble;i++){
+      let options=[];for(const from of [...DISPATCH.slice(0,cfg.dispatch),...BUFFERS]){if(!s[from].length)continue;for(const to of [...DISPATCH.slice(0,cfg.dispatch),...BUFFERS]){if(from===to||s[to].length>=CAP)continue;if(prev&&prev.from===to&&prev.to===from)continue;options.push({from,to})}}
+      if(!options.length)break;const m=options[Math.floor(Math.random()*options.length)];s=applyMove(s,m);path.push(m);prev=m;
+    }
+    const solution=[...path].reverse().map(m=>({from:m.to,to:m.from}));return {targetOrder:target,state:s,solution};
+  }
+  function loadDifficulty(level,usePreset=true){difficulty=level;puzzle=clonePuzzle(usePreset?PRESETS[level]:generatePuzzle(level));state=cloneState(puzzle.state);moves=0;history=[];selected=null;hintsUsed=0;hintLine.hidden=true;closeSolution();resetTimer();statusLine.textContent=`${DIFFICULTY[level].label} puzzle ready. Tap an exposed top container.`;render()}
+
+  // Lightweight breadth-first search for a helpful next move. It is intentionally capped.
+  function fingerprint(s){return activeIds().map(id=>s[id].join(',')).join('|')}
+  function findRoute(initial,maxVisited=70000){
+    if(isGoal(initial))return[];const start=fingerprint(initial),q=[cloneState(initial)],keys=[start],seen=new Set([start]),parent=new Map();let head=0;
+    while(head<q.length&&seen.size<maxVisited){const cur=q[head],key=keys[head++];for(const from of activeIds()){
+      if(!cur[from].length)continue;for(const to of activeIds()){
+        if(from===to||cur[to].length>=CAP)continue;const n=applyMove(cur,{from,to}),k=fingerprint(n);if(seen.has(k))continue;seen.add(k);parent.set(k,{prev:key,move:{from,to}});
+        if(isGoal(n)){const out=[];let x=k;while(x!==start){const p=parent.get(x);out.push(p.move);x=p.prev}return out.reverse()}
+        q.push(n);keys.push(k);
+      }
+    }}return null;
+  }
+  function showHint(){if(hintsUsed>=HINT_LIMIT||inSolution)return;statusLine.textContent='Smart Crane is checking the next move…';setTimeout(()=>{const route=findRoute(state,35000)||puzzle.solution;const m=route&&route[0];if(!m){statusLine.textContent='No quick hint found. Try Undo or Reset.';return}hintsUsed++;selected=null;hintLine.hidden=false;hintLine.textContent='💡 Hint: '+moveDescription(m,state);statusLine.textContent='Hint ready. Try the highlighted idea.';render()},30)}
+
+  function openSolution(){
+    if(inSolution)return;selected=null;hintLine.hidden=true;statusLine.textContent='Building a solution route…';
+    setTimeout(()=>{const route=findRoute(state,80000)||puzzle.solution;if(!route||!route.length){statusLine.textContent='No route was found quickly from this position.';return}solutionBase=cloneState(state);solutionSteps=route;solutionIndex=0;inSolution=true;statusLine.textContent=`Solution route opened: ${route.length} move${route.length===1?'':'s'} from the current board.`;render()},40)
+  }
+  function closeSolution(){if(solutionTimer){clearInterval(solutionTimer);solutionTimer=null}inSolution=false;solutionBase=null;solutionSteps=[];solutionIndex=0;solutionPanel.classList.remove('show');render()}
+  function solutionStep(delta){if(!inSolution)return;solutionIndex=Math.max(0,Math.min(solutionSteps.length,solutionIndex+delta));render()}
+  function playSolution(){if(!inSolution)return;if(solutionTimer){clearInterval(solutionTimer);solutionTimer=null;$('#playSolution').textContent='▶ Play';return}if(solutionIndex>=solutionSteps.length)solutionIndex=0;$('#playSolution').textContent='⏸ Pause';solutionTimer=setInterval(()=>{if(solutionIndex>=solutionSteps.length){clearInterval(solutionTimer);solutionTimer=null;$('#playSolution').textContent='▶ Play';return}solutionIndex++;render()},650)}
+
+  undoBtn.addEventListener('click',undo);hintBtn.addEventListener('click',showHint);resetBtn.addEventListener('click',resetAttempt);newBtn.addEventListener('click',()=>loadDifficulty(difficulty,false));solutionBtn.addEventListener('click',openSolution);
+  document.querySelectorAll('[data-difficulty]').forEach(b=>b.addEventListener('click',()=>loadDifficulty(b.dataset.difficulty,true)));
+  $('#prevSolution').addEventListener('click',()=>solutionStep(-1));$('#nextSolution').addEventListener('click',()=>solutionStep(1));$('#playSolution').addEventListener('click',playSolution);$('#closeSolution').addEventListener('click',()=>{closeSolution();statusLine.textContent='Game board restored. Continue playing.'});
+
+  const modal=$('#modalBackdrop');
+  function openModal(){modal.classList.add('show');$('#closeModal').focus()}
+  function closeModal(){modal.classList.remove('show')}
+  $('#howBtn').addEventListener('click',openModal);$('#closeModal').addEventListener('click',closeModal);$('#startBtn').addEventListener('click',closeModal);modal.addEventListener('mousedown',e=>{if(e.target===modal)closeModal()});
+  window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(modal.classList.contains('show'))closeModal();else if(inSolution){closeSolution();statusLine.textContent='Game board restored.'}else if(selected){selected=null;statusLine.textContent='Selection cleared.';render()}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo()}});
+
+  render();
+})();
+</script>
+</body>
+</html>
